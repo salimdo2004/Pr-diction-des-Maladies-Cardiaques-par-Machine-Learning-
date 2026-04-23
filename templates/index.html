@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <link rel="stylesheet" href="../static/style.css">
+    <title>AI Health Predictor | Smart Diagnosis System</title>
+</head>
+
+<body>
+<div class="navbar">
+    <h2>🧠 AI Health Predictor</h2>
+</div>
+<div class="container">
+<h1 class="main-title">🧠 AI Health Predictor</h1>
+<p class="subtitle">Smart Disease Detection using Artificial Intelligence</p>
+
+    <!-- SELECT MALADIE -->
+    <label>Choose Disease:</label>
+    <select id="diseaseType" onchange="toggleFields()">
+        <option value="heart">Heart Disease</option>
+        <option value="diabetes">Diabetes</option>
+    </select>
+
+    <hr>
+
+    <!-- HEART INPUTS -->
+    <div id="heartFields"  class="fields">
+        <input id="age" placeholder="Age"><br>
+        <input id="sex" placeholder="Sex (0/1)"><br>
+        <input id="cp" placeholder="Chest Pain (0-3)"><br>
+        <input id="trestbps" placeholder="Blood Pressure"><br>
+        <input id="chol" placeholder="Cholesterol"><br>
+        <input id="fbs" placeholder="FBS (0/1)"><br>
+        <input id="restecg" placeholder="ECG (0-2)"><br>
+        <input id="thalach" placeholder="Max Heart Rate"><br>
+        <input id="exang" placeholder="Angina (0/1)"><br>
+        <input id="oldpeak" placeholder="Oldpeak"><br>
+        <input id="slope" placeholder="Slope (0-2)"><br>
+        <input id="ca" placeholder="CA (0-4)"><br>
+        <input id="thal" placeholder="Thal (1-3)"><br>
+    </div>
+
+    <!-- DIABETES INPUTS -->
+    <div id="diabetesFields"  class="fields" style="display:none;">
+        <input id="glucose" placeholder="Glucose"><br>
+        <input id="bmi" placeholder="BMI"><br>
+        <input id="insulin" placeholder="Insulin"><br>
+    </div>
+
+    <button onclick="predict()">Predict</button>
+
+    <div id="result"></div>
+
+    <div id="riskBarContainer">
+        <div id="riskBar"></div>
+    </div>
+
+    <div id="shap"></div>
+</div>
+
+<script>
+
+// 🔁 SWITCH INPUTS
+function toggleFields() {
+    let type = document.getElementById("diseaseType").value;
+
+    document.getElementById("heartFields").style.display =
+        type === "heart" ? "block" : "none";
+
+    document.getElementById("diabetesFields").style.display =
+        type === "diabetes" ? "block" : "none";
+}
+
+
+// 🚀 PREDICTION
+function predict() {
+
+    let type = document.getElementById("diseaseType").value;
+    let data = [];
+
+    // 🔥 CASE HEART
+    if(type === "heart"){
+        data = [
+            age.value, sex.value, cp.value, trestbps.value, chol.value,
+            fbs.value, restecg.value, thalach.value, exang.value,
+            oldpeak.value, slope.value, ca.value, thal.value
+        ];
+    }
+
+    // 🔥 CASE DIABETES
+    else if(type === "diabetes"){
+        data = [
+            glucose.value, bmi.value, insulin.value
+        ];
+    }
+
+    // convert + validation
+    data = data.map(x => parseFloat(x));
+
+    if (data.some(isNaN)) {
+        alert("Please fill all fields correctly");
+        return;
+    }
+
+    fetch("/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            data: data,
+            type: type   // 🔥 important
+        })
+    })
+    .then(res => res.json())
+    .then(result => {
+
+        let box = document.getElementById("result");
+        let bar = document.getElementById("riskBar");
+
+        let riskPercent = result.risk * 100;
+
+        if(result.prediction == 1){
+            box.className = "result-box danger";
+            box.innerHTML = "⚠️ " + result.disease;
+        } else {
+            box.className = "result-box safe";
+            box.innerHTML = "✅ No Disease";
+        }
+
+        box.innerHTML += "<br>Risk: " + result.risk;
+
+        bar.style.width = riskPercent + "%";
+
+        bar.style.background =
+            riskPercent > 60 ? "red" :
+            riskPercent > 30 ? "orange" : "green";
+
+        // SHAP
+        fetch("/explain", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({data: data, type: type})
+        })
+        .then(res => res.json())
+        .then(res => {
+            document.getElementById("shap").innerHTML =
+                "<b>Impact:</b><br>" + res.shap_values.join(", ");
+        });
+
+    });
+}
+// Animation au changement de maladie
+function toggleFields() {
+    let type = document.getElementById("diseaseType").value;
+
+    let heart = document.getElementById("heartFields");
+    let diabetes = document.getElementById("diabetesFields");
+
+    heart.style.opacity = 0;
+    diabetes.style.opacity = 0;
+
+    setTimeout(() => {
+        heart.style.display = type === "heart" ? "block" : "none";
+        diabetes.style.display = type === "diabetes" ? "block" : "none";
+
+        heart.style.opacity = 1;
+        diabetes.style.opacity = 1;
+    }, 200);
+}
+</script>
+
+</body>
+</html>
